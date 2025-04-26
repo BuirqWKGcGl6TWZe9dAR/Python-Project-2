@@ -82,18 +82,16 @@ class Player(pygame.sprite.Sprite):
         self.speed_x = 0
         keystate = pygame.key.get_pressed()
         if keystate[pygame.K_LEFT]:
-            self.speed_x = -8  # Move left
+            self.speed_x = -8
         if keystate[pygame.K_RIGHT]:
-            self.speed_x = 8  # Move right
+            self.speed_x = 8
 
-        # Update position
         self.rect.x += self.speed_x
-
-        # Constrain the player within the screen bounds
-        if self.rect.left < 0:
-            self.rect.left = 0  # Prevent moving past the left edge
+        # Constrain player within screen bounds
         if self.rect.right > SCREEN_WIDTH:
-            self.rect.right = SCREEN_WIDTH  # Prevent moving past the right edge
+            self.rect.right = SCREEN_WIDTH
+        if self.rect.left < 0:
+            self.rect.left = 0
 
     def shoot(self):
         if not self.hidden:
@@ -151,7 +149,7 @@ class Bullet(pygame.sprite.Sprite):
         self.speedy = 1
 
     def update(self):
-        self.rect.y += self.speedy
+        self.rect.y -= self.speedy
         if self.rect.bottom < 0:
             self.kill()
 
@@ -296,33 +294,41 @@ def main_game():
             all_sprites.add(new_enemy)
             enemies.add(new_enemy)
             if player.shield <= 0:
-                # player.lives -= 1
                 player.shield = 100
+                player.lives -= 1
+                player.hide()
                 if player.lives == 0:
                     game_over = True
         
-        # Check if player collects a power-up
-        powerups_hit = pygame.sprite.spritecollide(player, powerups, True)
-        for powerup in powerups_hit:
-            if powerup.type == 'shield':
+        # Check player-powerup collisions
+        hits = pygame.sprite.spritecollide(player, powerups, True)
+        for hit in hits:
+            if hit.type == 'shield':
                 player.shield += 20
-            if powerup.type == 'power':
+                if player.shield > 100:
+                    player.shield = 100
+            if hit.type == 'power':
                 player.powerup()
-        
-        # Draw
-        screen.fill(BLACK)
-        
-        all_sprites.draw(screen)
-        
-        draw_text(screen, f"Score: {score}", 24, SCREEN_WIDTH // 2, 10)
-        draw_shield_bar(screen, 10, 20, player.shield)
-        draw_lives(screen, SCREEN_WIDTH - 100, 20, player.lives, player_mini_img)
         
         if game_over:
             draw_text(screen, "GAME OVER", 48, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+            pygame.display.flip()
+            pygame.time.wait(2000)  # Wait a bit before closing
+            running = False  # Exit the game loop after game over
+            
+        # Draw / render
+        screen.fill(BLACK)
+        all_sprites.draw(screen)
         
-        # Flip the screen
+        # Draw UI
+        draw_text(screen, str(score), 18, SCREEN_WIDTH / 2, 10)
+        draw_shield_bar(screen, 5, 5, player.shield)
+        draw_lives(screen, SCREEN_WIDTH - 100, 5, player.lives, player_mini_img)
+        
+        # Flip the display
         pygame.display.flip()
+    
+    pygame.quit()
 
-# Run the game
-main_game()
+if __name__ == "__main__":
+    main_game()
