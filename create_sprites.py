@@ -1,135 +1,83 @@
 import pygame
 import os
-import sys
-import random
 
 # Initialize pygame
 pygame.init()
 
-# Game window
-WIDTH, HEIGHT = 800, 600
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Space Game")
-
-# Clock
-clock = pygame.time.Clock()
-FPS = 60
-
-# Load images (assuming they exist)
-player_img = pygame.image.load("assets/images/player.png")
-bullet_img = pygame.image.load("assets/images/bullet.png")
-powerup_img = pygame.image.load("assets/images/powerup_power.png")
+# Create the assets/images directory if it doesn't exist
+if not os.path.exists("assets/images"):
+    os.makedirs("assets/images")
 
 # Colors
 BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+YELLOW = (255, 255, 0)
+PURPLE = (128, 0, 128)
+ORANGE = (255, 165, 0)
 
-# Player class
-class Player(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
-        self.image = player_img
-        self.rect = self.image.get_rect()
-        self.rect.centerx = WIDTH // 2
-        self.rect.bottom = HEIGHT - 10
-        self.speed_x = 0
-        self.lives = 3
-        self.power = 1
+# Screen dimensions
+screen_width = 800
+screen_height = 600
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption("Player Movement Example")
 
-    def update(self):
-        self.speed_x = 0
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            self.speed_x = -5
-        if keys[pygame.K_RIGHT]:
-            self.speed_x = 5
-        self.rect.x += self.speed_x
-        
-        # ✅ Prevent moving off-screen
-        if self.rect.left < 0:
-            self.rect.left = 0
-        if self.rect.right > WIDTH:
-            self.rect.right = WIDTH
+# Player sprite
+def create_player_sprite():
+    surface = pygame.Surface((50, 40), pygame.SRCALPHA)
+    pygame.draw.polygon(surface, BLUE, [(25, 0), (0, 40), (50, 40)])
+    pygame.draw.rect(surface, YELLOW, (18, 25, 14, 10))
+    pygame.draw.polygon(surface, RED, [(15, 40), (20, 50), (30, 50), (35, 40)])
+    pygame.image.save(surface, "assets/images/player.png")
+    return surface
 
-    def shoot(self):
-        bullet = Bullet(self.rect.centerx, self.rect.top)
-        all_sprites.add(bullet)
-        bullets.add(bullet)
+# Initialize player sprite
+player_sprite = create_player_sprite()
 
-# Bullet class
-class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        super().__init__()
-        self.image = bullet_img
-        self.rect = self.image.get_rect()
-        self.rect.centerx = x
-        self.rect.bottom = y
+# Define player position
+player_width = 50  # Width of the player ship
+player_height = 40  # Height of the player ship
+player_x = screen_width // 2  # Start at the center of the screen
+player_y = screen_height - player_height - 10  # Just above the bottom edge
 
-    def update(self):
-        self.rect.y -= 10
-        if self.rect.bottom < 0:
-            self.kill()
-
-# PowerUp class
-class PowerUp(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
-        self.image = powerup_img
-        self.rect = self.image.get_rect()
-        self.rect.x = random.randint(0, WIDTH - self.rect.width)
-        self.rect.y = random.randint(-100, -40)
-        self.speedy = 3
-
-    def update(self):
-        self.rect.y += self.speedy
-        if self.rect.top > HEIGHT:
-            self.kill()
-
-# Sprite groups
-all_sprites = pygame.sprite.Group()
-bullets = pygame.sprite.Group()
-powerups = pygame.sprite.Group()
-
-player = Player()
-all_sprites.add(player)
-
-# Spawn a power-up for testing
-powerup = PowerUp()
-all_sprites.add(powerup)
-powerups.add(powerup)
+# Player speed (you can adjust this value)
+player_speed = 5
 
 # Game loop
 running = True
 while running:
-    clock.tick(FPS)
+    screen.fill(BLACK)
 
-    # Events
+    # Handle events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-        # Shoot bullets
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                player.shoot()
+    # Player movement control
+    keys = pygame.key.get_pressed()
 
-    # Update
-    all_sprites.update()
+    if keys[pygame.K_LEFT]:
+        player_x -= player_speed
+        if player_x < 0:  # Prevent moving off the left edge
+            player_x = 0
+    elif keys[pygame.K_RIGHT]:
+        player_x += player_speed
+        if player_x > screen_width - player_width:  # Prevent moving off the right edge
+            player_x = screen_width - player_width
 
-    # ✅ Check for power-up collision
-    hits = pygame.sprite.spritecollide(player, powerups, True)
-    for hit in hits:
-        player.power += 1  # ✅ Power effect applied
-        print("Power increased! Current power:", player.power)
+    # Update player position
+    player_rect = pygame.Rect(player_x, player_y, player_width, player_height)
 
-    # ✅ End game when out of lives
-    if player.lives <= 0:
-        print("Game Over!")
-        pygame.quit()
-        sys.exit()
+    # Draw the player sprite
+    screen.blit(player_sprite, player_rect.topleft)
 
-    # Draw
-    screen.fill(BLACK)
-    all_sprites.draw(screen)
-    pygame.display.flip()
+    # Update the display
+    pygame.display.update()
 
+    # Frame rate
+    pygame.time.Clock().tick(60)
+
+# Quit pygame
 pygame.quit()
