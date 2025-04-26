@@ -42,6 +42,7 @@ clock = pygame.time.Clock()
 # Load game images
 player_img = load_image('player.png')
 player_mini_img = load_image('player_mini.png')
+player_power_img = load_image('player_power.png')  # Optional power-up version
 bullet_img = load_image('bullet.png')
 enemy_imgs = [load_image(f'enemy{i}.png') for i in range(1, 4)]
 powerup_imgs = {
@@ -67,18 +68,17 @@ class Player(pygame.sprite.Sprite):
         self.power_timer = 0
 
     def update(self):
-        # Unhide if hidden
         if self.hidden and pygame.time.get_ticks() - self.hide_timer > 1000:
             self.hidden = False
             self.rect.centerx = SCREEN_WIDTH // 2
             self.rect.bottom = SCREEN_HEIGHT - 10
 
-        # Power up timeout
         if self.power_level > 1 and pygame.time.get_ticks() - self.power_timer > 5000:
             self.power_level -= 1
             self.power_timer = pygame.time.get_ticks()
+            if self.power_level == 1:
+                self.image = player_img  # Reset to normal image
 
-        # Movement
         self.speed_x = 0
         keystate = pygame.key.get_pressed()
         if keystate[pygame.K_LEFT]:
@@ -88,7 +88,6 @@ class Player(pygame.sprite.Sprite):
 
         self.rect.x += self.speed_x
 
-        # Keep player within the screen boundaries
         if self.rect.left < 0:
             self.rect.left = 0
         if self.rect.right > SCREEN_WIDTH:
@@ -103,10 +102,8 @@ class Player(pygame.sprite.Sprite):
             elif self.power_level >= 2:
                 bullet1 = Bullet(self.rect.left + 10, self.rect.top)
                 bullet2 = Bullet(self.rect.right - 10, self.rect.top)
-                all_sprites.add(bullet1)
-                bullets.add(bullet1)
-                all_sprites.add(bullet2)
-                bullets.add(bullet2)
+                all_sprites.add(bullet1, bullet2)
+                bullets.add(bullet1, bullet2)
 
     def hide(self):
         self.hidden = True
@@ -116,6 +113,8 @@ class Player(pygame.sprite.Sprite):
     def powerup(self):
         self.power_level += 1
         self.power_timer = pygame.time.get_ticks()
+        self.image = player_power_img  # Optional visual change
+        print(f"Power level increased to: {self.power_level}")
 
 # Enemy class
 class Enemy(pygame.sprite.Sprite):
@@ -131,14 +130,12 @@ class Enemy(pygame.sprite.Sprite):
     def update(self):
         self.rect.y += self.speedy
         self.rect.x += self.speedx
-
         if self.rect.top > SCREEN_HEIGHT + 10:
             self.rect.x = random.randrange(0, SCREEN_WIDTH - self.rect.width)
             self.rect.y = random.randrange(-100, -40)
             self.speedy = random.randrange(1, 8)
-
         if self.rect.left < -25 or self.rect.right > SCREEN_WIDTH + 25:
-            self.speedx *= -1  # Bounce off the sides
+            self.speedx *= -1
 
 # Bullet class
 class Bullet(pygame.sprite.Sprite):
@@ -171,7 +168,7 @@ class Powerup(pygame.sprite.Sprite):
         if self.rect.top > SCREEN_HEIGHT:
             self.kill()
 
-# Explosion animation class
+# Explosion animation
 class Explosion(pygame.sprite.Sprite):
     def __init__(self, center, size):
         super().__init__()
@@ -197,15 +194,14 @@ class Explosion(pygame.sprite.Sprite):
                 self.rect = self.image.get_rect()
                 self.rect.center = old_center
 
-# Function to draw text
-def draw_text(surface, text, size, x, y):
+# Draw functions
+def draw_text(surface, text, size, x, y, color=WHITE):
     font = pygame.font.SysFont("arial", size)
-    text_surface = font.render(text, True, WHITE)
+    text_surface = font.render(text, True, color)
     text_rect = text_surface.get_rect()
     text_rect.midtop = (x, y)
     surface.blit(text_surface, text_rect)
 
-# Function to draw shield bar
 def draw_shield_bar(surface, x, y, percentage):
     if percentage < 0:
         percentage = 0
@@ -217,7 +213,6 @@ def draw_shield_bar(surface, x, y, percentage):
     pygame.draw.rect(surface, GREEN, fill_rect)
     pygame.draw.rect(surface, WHITE, outline_rect, 2)
 
-# Function to draw lives
 def draw_lives(surface, x, y, lives, img):
     for i in range(lives):
         img_rect = img.get_rect()
@@ -225,36 +220,29 @@ def draw_lives(surface, x, y, lives, img):
         img_rect.y = y
         surface.blit(img, img_rect)
 
-# Game loop
+# Main game loop
 def main_game():
     global all_sprites, bullets, enemies, powerups
 
     running = True
-
-    # Sprite groups
     all_sprites = pygame.sprite.Group()
     bullets = pygame.sprite.Group()
     enemies = pygame.sprite.Group()
     powerups = pygame.sprite.Group()
 
-    # Create player
     player = Player()
     all_sprites.add(player)
 
-    # Create enemies
     for i in range(8):
         new_enemy = Enemy()
         all_sprites.add(new_enemy)
         enemies.add(new_enemy)
 
-    # Score
     score = 0
 
-    # Main game loop
     while running:
         clock.tick(FPS)
 
-        # Events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -264,7 +252,6 @@ def main_game():
                 if event.key == pygame.K_SPACE:
                     player.shoot()
 
-        # Update
         all_sprites.update()
 
         # Bullet hits enemy
@@ -277,6 +264,9 @@ def main_game():
                 powerup = Powerup()
                 all_sprites.add(powerup)
                 powerups.add(powerup)
+            new_enemy = Enemy()
+            all_sprites.add(new_enemy)
+            enemies.add(new_enemy)
 
         # Enemy hits player
         hits = pygame.sprite.spritecollide(player, enemies, True)
@@ -293,7 +283,6 @@ def main_game():
                 player.shield = 100
                 player.hide()
                 if player.lives == 0:
-                    # Game Over
                     screen.fill(BLACK)
                     draw_text(screen, "GAME OVER", 64, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 4)
                     draw_text(screen, f"Score: {score}", 32, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
@@ -311,12 +300,17 @@ def main_game():
                     player.shield = 100
             if hit.type == 'power':
                 player.powerup()
+                # Display quick feedback
+                draw_text(screen, "Power Up!", 32, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 3, YELLOW)
+                pygame.display.flip()
+                pygame.time.wait(300)
 
-        # Draw
+        # Draw everything
         screen.fill(BLACK)
         all_sprites.draw(screen)
 
         draw_text(screen, str(score), 18, SCREEN_WIDTH / 2, 10)
+        draw_text(screen, f"Power: {player.power_level}", 18, SCREEN_WIDTH - 120, 35)
         draw_shield_bar(screen, 5, 5, player.shield)
         draw_lives(screen, SCREEN_WIDTH - 100, 5, player.lives, player_mini_img)
 
