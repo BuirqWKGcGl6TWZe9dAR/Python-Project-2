@@ -87,11 +87,11 @@ class Player(pygame.sprite.Sprite):
             self.speed_x = 8
 
         self.rect.x += self.speed_x
-        # Constrain player within screen bounds
-        if self.rect.right > SCREEN_WIDTH:
-            self.rect.right = SCREEN_WIDTH
+        # Keep player within the screen boundaries
         if self.rect.left < 0:
             self.rect.left = 0
+        if self.rect.right > SCREEN_WIDTH:
+            self.rect.right = SCREEN_WIDTH
 
     def shoot(self):
         if not self.hidden:
@@ -100,9 +100,12 @@ class Player(pygame.sprite.Sprite):
                 all_sprites.add(bullet)
                 bullets.add(bullet)
             elif self.power_level >= 2:
-                bullet1 = Bullet(self.rect.centerx, self.rect.top)
+                bullet1 = Bullet(self.rect.left + 10, self.rect.top)
+                bullet2 = Bullet(self.rect.right - 10, self.rect.top)
                 all_sprites.add(bullet1)
                 bullets.add(bullet1)
+                all_sprites.add(bullet2)
+                bullets.add(bullet2)
 
     def hide(self):
         self.hidden = True
@@ -127,16 +130,14 @@ class Enemy(pygame.sprite.Sprite):
     def update(self):
         self.rect.y += self.speedy
         self.rect.x += self.speedx
-        
+
         if self.rect.top > SCREEN_HEIGHT + 10:
             self.rect.x = random.randrange(0, SCREEN_WIDTH - self.rect.width)
             self.rect.y = random.randrange(-100, -40)
             self.speedy = random.randrange(1, 8)
 
         if self.rect.left < -25 or self.rect.right > SCREEN_WIDTH + 25:
-            self.rect.x = random.randrange(0, SCREEN_WIDTH - self.rect.width)
-            self.rect.y = random.randrange(-100, -40)
-            self.speedy = random.randrange(1, 8)
+            self.speedx *= -1 # Bounce off the sides
 
 # Bullet class
 class Bullet(pygame.sprite.Sprite):
@@ -146,10 +147,10 @@ class Bullet(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.centerx = x
         self.rect.bottom = y
-        self.speedy = 1
+        self.speedy = -10
 
     def update(self):
-        self.rect.y -= self.speedy
+        self.rect.y += self.speedy
         if self.rect.bottom < 0:
             self.kill()
 
@@ -187,11 +188,11 @@ class Explosion(pygame.sprite.Sprite):
         if now - self.last_update > self.frame_rate:
             self.last_update = now
             self.frame += 1
-            if self.frame >= 5:
+            if self.frame >= len(self.images):
                 self.kill()
-            elif self.frame < 5:
-                self.image = self.images[self.frame]
+            else:
                 old_center = self.rect.center
+                self.image = self.images[self.frame]
                 self.rect = self.image.get_rect()
                 self.rect.center = old_center
 
@@ -226,34 +227,34 @@ def draw_lives(surface, x, y, lives, img):
 # Game loop
 def main_game():
     global all_sprites, bullets, enemies, powerups
-    
+
     game_over = False
     running = True
-    
+
     # Sprite groups
     all_sprites = pygame.sprite.Group()
     bullets = pygame.sprite.Group()
     enemies = pygame.sprite.Group()
     powerups = pygame.sprite.Group()
-    
+
     # Create player
     player = Player()
     all_sprites.add(player)
-    
+
     # Create enemies
     for i in range(8):
         new_enemy = Enemy()
         all_sprites.add(new_enemy)
         enemies.add(new_enemy)
-    
+
     # Score
     score = 0
-    
+
     # Main game loop
     while running:
         # Keep loop running at the right speed
         clock.tick(FPS)
-        
+
         # Process input (events)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -263,27 +264,23 @@ def main_game():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     player.shoot()
-        
+
         # Update
         all_sprites.update()
-        
+
         # Check bullet-enemy collisions
-        hits = pygame.sprite.groupcollide(enemies, bullets, False, True)
+        hits = pygame.sprite.groupcollide(enemies, bullets, True, True)
         for hit in hits:
             score += 10
             # Create explosion
             explosion = Explosion(hit.rect.center, 30)
             all_sprites.add(explosion)
-            # Spawn new enemy
-            new_enemy = Enemy()
-            all_sprites.add(new_enemy)
-            enemies.add(new_enemy)
             # Random chance for power-up
             if random.random() > 0.5:  # 50% chance
                 powerup = Powerup()
                 all_sprites.add(powerup)
                 powerups.add(powerup)
-        
+
         # Check player-enemy collisions
         hits = pygame.sprite.spritecollide(player, enemies, True)
         for hit in hits:
@@ -294,12 +291,12 @@ def main_game():
             all_sprites.add(new_enemy)
             enemies.add(new_enemy)
             if player.shield <= 0:
-                player.shield = 100
                 player.lives -= 1
+                player.shield = 100
                 player.hide()
                 if player.lives == 0:
                     game_over = True
-        
+
         # Check player-powerup collisions
         hits = pygame.sprite.spritecollide(player, powerups, True)
         for hit in hits:
@@ -309,25 +306,29 @@ def main_game():
                     player.shield = 100
             if hit.type == 'power':
                 player.powerup()
-        
+
+        # Game over sequence
         if game_over:
-            draw_text(screen, "GAME OVER", 48, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+            draw_text(screen, "GAME OVER", 64, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 4)
+            draw_text(screen, f"Score: {score}", 32, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2)
             pygame.display.flip()
-            pygame.time.wait(2000)  # Wait a bit before closing
-            running = False  # Exit the game loop after game over
-            
+            pygame.time.wait(3000)
+            running = False
+            pygame.quit()
+            sys.exit()
+
         # Draw / render
         screen.fill(BLACK)
         all_sprites.draw(screen)
-        
+
         # Draw UI
         draw_text(screen, str(score), 18, SCREEN_WIDTH / 2, 10)
         draw_shield_bar(screen, 5, 5, player.shield)
         draw_lives(screen, SCREEN_WIDTH - 100, 5, player.lives, player_mini_img)
-        
+
         # Flip the display
         pygame.display.flip()
-    
+
     pygame.quit()
 
 if __name__ == "__main__":
