@@ -1,5 +1,6 @@
 import pygame
 import os
+import sys
 
 # Initialize pygame
 pygame.init()
@@ -18,11 +19,14 @@ YELLOW = (255, 255, 0)
 PURPLE = (128, 0, 128)
 ORANGE = (255, 165, 0)
 
-# Screen dimensions
+# Screen setup
 screen_width = 800
 screen_height = 600
 screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("Player Movement Example")
+pygame.display.set_caption("Space Shooter")
+
+# Player initial lives
+player_lives = 3
 
 # Create player sprite
 def create_player_sprite():
@@ -31,38 +35,41 @@ def create_player_sprite():
     pygame.draw.rect(surface, YELLOW, (18, 25, 14, 10))
     pygame.draw.polygon(surface, RED, [(15, 40), (20, 50), (30, 50), (35, 40)])
     pygame.image.save(surface, "assets/images/player.png")
+
+    mini = pygame.Surface((25, 20), pygame.SRCALPHA)
+    pygame.draw.polygon(mini, BLUE, [(12, 0), (0, 20), (25, 20)])
+    pygame.draw.rect(mini, YELLOW, (9, 12, 7, 5))
+    pygame.image.save(mini, "assets/images/player_mini.png")
+
     return surface
 
 # Create enemy sprites (3 different types)
 def create_enemy_sprites():
     enemies = []
     
-    # Enemy Type 1: Basic saucer
     enemy1 = pygame.Surface((30, 30), pygame.SRCALPHA)
     pygame.draw.ellipse(enemy1, RED, (0, 5, 30, 20))
     pygame.draw.ellipse(enemy1, YELLOW, (5, 0, 20, 30))
     pygame.image.save(enemy1, "assets/images/enemy1.png")
     enemies.append(enemy1)
-    
-    # Enemy Type 2: Octagon
+
     enemy2 = pygame.Surface((30, 30), pygame.SRCALPHA)
     pygame.draw.polygon(enemy2, PURPLE, [
-        (15, 0), (25, 5), (30, 15), 
+        (15, 0), (25, 5), (30, 15),
         (25, 25), (15, 30), (5, 25),
         (0, 15), (5, 5)
     ])
     pygame.draw.circle(enemy2, RED, (15, 15), 5)
     pygame.image.save(enemy2, "assets/images/enemy2.png")
     enemies.append(enemy2)
-    
-    # Enemy Type 3: Square with details
+
     enemy3 = pygame.Surface((30, 30), pygame.SRCALPHA)
     pygame.draw.rect(enemy3, GREEN, (0, 0, 30, 30))
     pygame.draw.rect(enemy3, BLACK, (5, 5, 20, 20))
     pygame.draw.rect(enemy3, WHITE, (10, 10, 10, 10))
     pygame.image.save(enemy3, "assets/images/enemy3.png")
     enemies.append(enemy3)
-    
+
     return enemies
 
 # Create bullet sprite
@@ -77,14 +84,12 @@ def create_bullet_sprite():
 def create_powerup_sprites():
     powerups = {}
     
-    # Shield power-up
     shield = pygame.Surface((20, 20), pygame.SRCALPHA)
     pygame.draw.circle(shield, BLUE, (10, 10), 10)
     pygame.draw.circle(shield, WHITE, (10, 10), 6, 2)
     pygame.image.save(shield, "assets/images/powerup_shield.png")
     powerups['shield'] = shield
     
-    # Power power-up
     power = pygame.Surface((20, 20), pygame.SRCALPHA)
     pygame.draw.circle(power, YELLOW, (10, 10), 10)
     pygame.draw.polygon(power, RED, [(10, 2), (18, 10), (10, 18), (2, 10)])
@@ -101,7 +106,6 @@ def create_explosion_sprites():
         radius = size // 2
         center = (radius, radius)
         
-        # Create a gradient color explosion
         color = (255, 255 - (i * 40), 0)
         for r in range(radius, 0, -4):
             intensity = max(0, min(255, 255 - (radius - r) * 8))
@@ -119,51 +123,59 @@ create_powerup_sprites()
 create_explosion_sprites()
 print("All sprites created successfully in assets/images/")
 
-# Create player sprite
+# Game setup
 player_sprite = pygame.image.load("assets/images/player.png")
-
-# Define player position
-player_width = 50  # Width of the player ship
-player_height = 40  # Height of the player ship
-player_x = screen_width // 2  # Start at the center of the screen
-player_y = screen_height - player_height - 10  # Just above the bottom edge
-
-# Player speed
-player_speed = 5
+enemy_sprites = create_enemy_sprites()
+bullet_sprite = create_bullet_sprite()
+powerup_sprites = create_powerup_sprites()
+explosion_sprites = create_explosion_sprites()
 
 # Game loop
 running = True
-while running:
-    screen.fill(BLACK)
+player_x, player_y = screen_width // 2, screen_height - 60
+player_speed = 5
 
-    # Handle events
+while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-    # Player movement control
+    # Handle player movement (basic left-right movement)
     keys = pygame.key.get_pressed()
-
     if keys[pygame.K_LEFT]:
         player_x -= player_speed
-        if player_x < 0:  # Prevent moving off the left edge
-            player_x = 0
-    elif keys[pygame.K_RIGHT]:
+    if keys[pygame.K_RIGHT]:
         player_x += player_speed
-        if player_x > screen_width - player_width:  # Prevent moving off the right edge
-            player_x = screen_width - player_width
 
-    # Update player position
-    player_rect = pygame.Rect(player_x, player_y, player_width, player_height)
+    # Prevent player from moving out of bounds
+    player_x = max(0, min(screen_width - 50, player_x))
 
-    # Draw the player sprite
-    screen.blit(player_sprite, player_rect.topleft)
+    # Check if player collides with any enemy (example collision handling)
+    # In a real game, you would add actual collision logic
+    if player_y <= 0:  # Example condition for losing a life
+        player_lives -= 1
+        if player_lives <= 0:
+            print("Game Over")
+            running = False  # End the game
 
-    # Update the display
-    pygame.display.update()
+    # Clear screen and update here
+    screen.fill(BLACK)
 
-    # Frame rate
+    # Draw player
+    screen.blit(player_sprite, (player_x, player_y))
+
+    # Example of drawing enemies (simplified)
+    for enemy in enemy_sprites:
+        screen.blit(enemy, (100, 100))  # You should use actual coordinates here
+
+    # Draw lives indicator (e.g., display mini player ships)
+    for i in range(player_lives):
+        screen.blit(pygame.image.load("assets/images/player_mini.png"), (10 + i * 30, 10))
+
+    pygame.display.flip()  # Update the display
+
+    # Control the frame rate (e.g., 60 FPS)
     pygame.time.Clock().tick(60)
 
-# Quit pygame
 pygame.quit()
+sys.exit()  # Close the game properly
